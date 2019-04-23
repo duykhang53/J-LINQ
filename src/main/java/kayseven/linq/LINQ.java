@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -51,28 +52,47 @@ public class LINQ<E> implements Iterable<E> {
         return new LINQ<T>(iterable != null ? iterable : new Iterable<T>() {
             @Override
             public Iterator<T> iterator() {
-                return new Iterator<T>() {
-                    @Override
-                    public boolean hasNext() {
-                        return false;
-                    }
-
-                    @Override
-                    public T next() {
-                        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-                    }
-
-                    @Override
-                    public void remove() {
-                        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-                    }
-                };
+                return Collections.emptyIterator();
             }
         });
     }
 
     public static <T> LINQ<T> create(T[] ary) {
-        return new LINQ<T>(Arrays.asList(ary));
+        return new LINQ<T>(ary != null ? Arrays.asList(ary) : new Iterable<T>() {
+            @Override
+            public Iterator<T> iterator() {
+                return Collections.emptyIterator();
+            }
+        });
+    }
+
+    public static <T> LINQ<T> create(final Enumeration<T> enumeration) {
+        return new LINQ<T>(enumeration != null ? new Iterable<T>() {
+            @Override
+            public Iterator<T> iterator() {
+                return new Iterator<T>() {
+                    @Override
+                    public boolean hasNext() {
+                        return enumeration.hasMoreElements();
+                    }
+
+                    @Override
+                    public T next() {
+                        return enumeration.nextElement();
+                    }
+
+                    @Override
+                    public void remove() {
+                        throw new UnsupportedOperationException("Not supported yet.");
+                    }
+                };
+            }
+        } : new Iterable<T>() {
+            @Override
+            public Iterator<T> iterator() {
+                return Collections.emptyIterator();
+            }
+        });
     }
 
     private static <T> LINQ<T> concat(final Iterator<T> ite1, final Iterator<T> ite2) {

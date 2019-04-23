@@ -1,5 +1,8 @@
 {
     "javascript.implicitProjectConfig.checkJs": true,
     "java.completion.guessMethodArguments": true,
-    "java.classPath": ["/src/main/java"]
+    "java.classPath": [
+        "/src/main/java"
+    ],
+    "java.configuration.updateBuildConfiguration": "interactive"
 }
