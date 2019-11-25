@@ -1,15 +1,18 @@
 package kayseven.linq;
 
-import java.lang.reflect.Array;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+
+import kayseven.linq.accessor.ContainsAccessor;
+import kayseven.linq.accessor.ElementAtAccessor;
+import kayseven.linq.accessor.SizeAccessor;
+import kayseven.linq.accessor.ToArrayAccessor;
+import kayseven.linq.accessor.ToLinkedListAccessor;
+import kayseven.linq.accessor.ToListAccessor;
 import kayseven.linq.operation.ConcatenateOperation;
 import kayseven.linq.operation.DistinctOperation;
 import kayseven.linq.operation.OfTypeOperation;
@@ -21,8 +24,10 @@ import kayseven.linq.operation.TakeOperation;
 import kayseven.linq.operation.TakeWhileOperation;
 import kayseven.linq.operation.UnionSelectOperation;
 import kayseven.linq.operation.WhereOperation;
+import kayseven.linq.operation.grouping.GroupByOperation;
 import kayseven.linq.operation.grouping.Grouping;
 import kayseven.linq.operation.ordering.OrderByAscendingOperation;
+import kayseven.linq.operation.ordering.OrderByDescendingOperation;
 import kayseven.linq.operation.ordering.OrderedLINQ;
 
 /**
@@ -30,139 +35,23 @@ import kayseven.linq.operation.ordering.OrderedLINQ;
  * @author K7
  * @param <E> item type
  */
-public class LINQ<E> implements Iterable<E> {
-
-    @SuppressWarnings("rawtypes")
-    public static final Comparator DEFAULT_COMPARATOR = new DefaultComparator();
-    @SuppressWarnings("rawtypes")
-    public static final EqualityComparer DEFAULT_EQUALITY_COMPARER = new DefaultEqualityComparer();
-
-    public static <E> List<E> asList(final Iterator<E> iterator) {
-        List<E> iteList = new ArrayList<E>();
-
-        while (iterator.hasNext()) {
-            E next = iterator.next();
-            iteList.add(next);
-        }
-
-        return iteList;
-    }
-
-    public static <T> LINQ<T> create(Iterable<T> iterable) {
-        return new LINQ<T>(iterable != null ? iterable : new Iterable<T>() {
-            @Override
-            public Iterator<T> iterator() {
-                return Collections.emptyIterator();
-            }
-        });
-    }
-
-    public static <T> LINQ<T> create(T[] ary) {
-        return new LINQ<T>(ary != null ? Arrays.asList(ary) : new Iterable<T>() {
-            @Override
-            public Iterator<T> iterator() {
-                return Collections.emptyIterator();
-            }
-        });
-    }
-
-    public static <T> LINQ<T> create(final Enumeration<T> enumeration) {
-        return new LINQ<T>(enumeration != null ? new Iterable<T>() {
-            @Override
-            public Iterator<T> iterator() {
-                return new Iterator<T>() {
-                    @Override
-                    public boolean hasNext() {
-                        return enumeration.hasMoreElements();
-                    }
-
-                    @Override
-                    public T next() {
-                        return enumeration.nextElement();
-                    }
-
-                    @Override
-                    public void remove() {
-                        throw new UnsupportedOperationException("Not supported yet.");
-                    }
-                };
-            }
-        } : new Iterable<T>() {
-            @Override
-            public Iterator<T> iterator() {
-                return Collections.emptyIterator();
-            }
-        });
-    }
+public class LINQ<E> extends LINQBase<E> {
 
     private static <T> LINQ<T> concat(final Iterator<T> ite1, final Iterator<T> ite2) {
         return new ConcatenateOperation<T>(ite1, ite2).getLINQ();
     }
-    private Collection<E> collection;
-    private final Iterator<E> m_iterator;
-    private boolean isConstructed;
-    private final Object constructLock;
 
     protected LINQ(Iterable<E> iterable) {
         this(iterable.iterator());
 
         if (iterable instanceof Collection) {
-            isConstructed = true;
-            this.collection = (Collection<E>) iterable;
+            super.isConstructed = true;
+            super.collection = (Collection<E>) iterable;
         }
     }
 
-    protected LINQ(final Iterator<E> iterator) {
-        m_iterator = iterator;
-        constructLock = new Object();
-    }
-
-    @Override
-    public final synchronized Iterator<E> iterator() {
-        if (isConstructed) {
-            return collection.iterator();
-        }
-
-        final List<E> syncList;
-        if (collection == null) {
-            syncList = Collections.synchronizedList(new ArrayList<E>());
-            collection = syncList;
-        } else {
-            syncList = (List<E>) collection;
-        }
-
-        return new Iterator<E>() {
-            private int idx = -1;
-
-            @Override
-            public boolean hasNext() {
-                synchronized (constructLock) {
-                    return idx + 1 < syncList.size() || m_iterator.hasNext();
-                }
-            }
-
-            @Override
-            public E next() {
-                synchronized (constructLock) {
-                    if (++idx < syncList.size()) {
-                        return syncList.get(idx);
-                    }
-
-                    E nxt = m_iterator.next();
-                    if (!m_iterator.hasNext()) {
-                        isConstructed = true;
-                    }
-                    syncList.add(nxt);
-
-                    return nxt;
-                }
-            }
-
-            @Override
-            public void remove() {
-                throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-            }
-        };
+    protected LINQ(Iterator<E> iterator) {
+        super(iterator);
     }
 
     public LINQ<E> reverse() {
@@ -179,11 +68,7 @@ public class LINQ<E> implements Iterable<E> {
     }
 
     public E elementAt(int index) {
-        if (collection instanceof List && index < collection.size()) {
-            return ((List<E>) collection).get(index);
-        }
-
-        return skip(index).iterator().next();
+        return new ElementAtAccessor<E>(this, index).getValue();
     }
 
     public boolean any() {
@@ -191,17 +76,7 @@ public class LINQ<E> implements Iterable<E> {
     }
 
     public int size() {
-        if (isConstructed) {
-            return collection.size();
-        }
-
-        int cnt = 0;
-
-        for (E e : this) {
-            cnt++;
-        }
-
-        return cnt;
+        return new SizeAccessor<E>(this).getValue();
     }
 
     public LINQ<E> skip(int offset) {
@@ -209,7 +84,7 @@ public class LINQ<E> implements Iterable<E> {
     }
 
     public LINQ<E> skipWhile(final Predicate<E> predicate) {
-        return new SkipWhileOperation(iterator(), predicate).getLINQ();
+        return new SkipWhileOperation<E>(iterator(), predicate).getLINQ();
     }
 
     public LINQ<E> take(final int count) {
@@ -221,29 +96,15 @@ public class LINQ<E> implements Iterable<E> {
     }
 
     public E[] toArray(Class<E> clazz) {
-        List<E> list = toList();
-        E[] ary = (E[]) Array.newInstance(clazz, list.size());
-        return list.toArray(ary);
+        return new ToArrayAccessor<E>(this, clazz).getValue();
     }
 
     public List<E> toList() {
-        ArrayList<E> list = new ArrayList<E>();
-
-        for (E e : this) {
-            list.add(e);
-        }
-
-        return list;
+        return new ToListAccessor<E>(this).getValue();
     }
 
     public LinkedList<E> toLinkedList() {
-        LinkedList<E> linkedList = new LinkedList<E>();
-
-        for (E e : this) {
-            linkedList.add(e);
-        }
-
-        return linkedList;
+        return new ToLinkedListAccessor<E>(this).getValue();
     }
 
     public boolean contains(E obj, EqualityComparer<E> equalityComparer) {
@@ -269,7 +130,7 @@ public class LINQ<E> implements Iterable<E> {
     }
 
     public LINQ<E> distinct() {
-        return distinct(DEFAULT_EQUALITY_COMPARER);
+        return distinct(LINQBase.<E>defaultEqualityComparator());
     }
 
     public LINQ<E> distinct(EqualityComparer<E> equalityComparer) {
@@ -295,13 +156,7 @@ public class LINQ<E> implements Iterable<E> {
     }
 
     public boolean contains(E obj) {
-        for (E e : this) {
-            if (e == obj || (obj != null && obj.equals(e))) {
-                return true;
-            }
-        }
-
-        return false;
+        return new ContainsAccessor<E>(this, obj).getValue();
     }
 
     public boolean any(Predicate<E> predicate) {
@@ -322,16 +177,40 @@ public class LINQ<E> implements Iterable<E> {
         return new OfTypeOperation<E, T>(iterator(), clazz).getLINQ();
     }
 
-    public <EProperty> OrderedLINQ<E> orderBy(final PropertyExpression<E, EProperty> expression) {
-        return new OrderByAscendingOperation<E, EProperty>(this, expression, DEFAULT_COMPARATOR).getLINQ();
+    public OrderedLINQ<E> orderAscending() {
+        return orderBy(LINQBase.<E, E>selfSelectExpression());
     }
 
-    public <EProperty> OrderedLINQ<E> orderBy(final PropertyExpression<E, EProperty> expression, final Comparator<EProperty> comparator) {
-        return new OrderByAscendingOperation<E, EProperty>(this, expression, comparator).getLINQ();
+    public OrderedLINQ<E> orderUsing(Comparator<E> comparator) {
+        return orderBy(LINQBase.<E, E>selfSelectExpression(), comparator);
     }
 
-    public <EProperty> LINQ<Grouping<EProperty, E>> groupBy(PropertyExpression<E, EProperty> expression) {
-        return groupBy(expression, DEFAULT_EQUALITY_COMPARER);
+    public <EProperty> OrderedLINQ<E> orderBy(PropertyExpression<E, EProperty> expression) {
+        return orderBy(expression, LINQBase.<EProperty>defaultComparator());
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    public <EProperty> OrderedLINQ<E> orderBy(PropertyExpression<E, EProperty> expression,
+            final Comparator<EProperty> comparator) {
+        return new OrderByAscendingOperation(this, null, expression, comparator).getValue();
+    }
+
+    public OrderedLINQ<E> orderDescending() {
+        return orderDescendingBy(LINQBase.<E, E>selfSelectExpression());
+    }
+
+    public OrderedLINQ<E> orderDescendingUsing(Comparator<E> comparator) {
+        return orderDescendingBy(LINQBase.<E, E>selfSelectExpression(), comparator);
+    }
+
+    public <EProperty> OrderedLINQ<E> orderDescendingBy(PropertyExpression<E, EProperty> expression) {
+        return orderDescendingBy(expression, LINQBase.<EProperty>defaultComparator());
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    public <EProperty> OrderedLINQ<E> orderDescendingBy(PropertyExpression<E, EProperty> expression,
+            final Comparator<EProperty> comparator) {
+        return new OrderByDescendingOperation(this, null, expression, comparator).getValue();
     }
 
     public LINQ<E> foreach(Consumer<E> consumer) {
@@ -342,38 +221,17 @@ public class LINQ<E> implements Iterable<E> {
         return this;
     }
 
-    public <EProperty> LINQ<Grouping<EProperty, E>> groupBy(final PropertyExpression<E, EProperty> expression, final EqualityComparer<EProperty> equalityComparer) {
-        final LinkedList<E> ll = toLinkedList();
+    public <EProperty> LINQ<Grouping<EProperty, E>> groupUsing(EqualityComparer<EProperty> equalityComparer) {
+        return groupBy(LINQBase.<E, EProperty>selfSelectExpression(), equalityComparer);
+    }
 
-        return new LINQ<Grouping<EProperty, E>>(new Iterator<Grouping<EProperty, E>>() {
-            @Override
-            public boolean hasNext() {
-                return !ll.isEmpty();
-            }
+    public <EProperty> LINQ<Grouping<EProperty, E>> groupBy(PropertyExpression<E, EProperty> expression) {
+        return groupBy(expression, LINQBase.<EProperty>defaultEqualityComparator());
+    }
 
-            @Override
-            public Grouping<EProperty, E> next() {
-                E first = ll.removeFirst();
-                final EProperty prop = first == null ? null : expression.getValue(first);
-
-                List<E> lst = LINQ.create(ll).where(new Predicate<E>() {
-                    @Override
-                    public boolean test(E t) {
-                        EProperty otherProp = t == null ? null : expression.getValue(t);
-                        return equalityComparer.isEquals(prop, otherProp);
-                    }
-                }).toList();
-                lst.add(0, first);
-                ll.removeAll(lst);
-
-                return new Grouping<EProperty, E>(prop, lst);
-            }
-
-            @Override
-            public void remove() {
-                throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-            }
-        });
+    public <EProperty> LINQ<Grouping<EProperty, E>> groupBy(final PropertyExpression<E, EProperty> expression,
+            final EqualityComparer<EProperty> equalityComparer) {
+        return new GroupByOperation<E, EProperty>(this, expression, equalityComparer).getValue();
     }
 
     public <EProperty> LINQ<EProperty> select(final PropertyExpression<E, EProperty> expression) {
@@ -387,5 +245,4 @@ public class LINQ<E> implements Iterable<E> {
     public <EProperty> LINQ<EProperty> unionSelect(final PropertyExpression<E, Iterable<EProperty>> expression) {
         return new UnionSelectOperation<E, EProperty>(iterator(), expression).getLINQ();
     }
-
 }

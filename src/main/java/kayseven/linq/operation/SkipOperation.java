@@ -14,11 +14,9 @@ import kayseven.linq.LINQOperation;
  * @param <E>
  */
 public class SkipOperation<E> extends LINQOperation<E> {
-    private final int offset;
-
+    
     public SkipOperation(Iterator<E> iterator, int offset) {
         super(iterator);
-        this.offset = offset;
         for (int i = 0; i < offset && iterator.hasNext(); i++) {
             iterator.next();
         }

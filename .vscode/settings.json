@@ -4,5 +4,10 @@
     "java.classPath": [
         "/src/main/java"
     ],
-    "java.configuration.updateBuildConfiguration": "interactive"
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "cSpell.words": [
+        "LINQ",
+        "kayseven",
+        "rawtypes"
+    ]
 }

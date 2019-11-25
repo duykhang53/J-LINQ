@@ -1,12 +1,14 @@
 
 package kayseven.linq.operation.grouping;
 
-import java.util.Comparator;
-import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
+
+import kayseven.linq.EqualityComparer;
 import kayseven.linq.LINQ;
+import kayseven.linq.LINQPropertyBaseOperation;
+import kayseven.linq.Predicate;
 import kayseven.linq.PropertyExpression;
-import kayseven.linq.operation.ordering.OrderedLINQ;
 
 /**
  *
@@ -14,26 +16,43 @@ import kayseven.linq.operation.ordering.OrderedLINQ;
  * @param <E>
  * @param <EProperty>
  */
-public class GroupByOperation<E, EProperty> 
-//implements Iterator<E> 
-{
+public class GroupByOperation<E, EProperty>
+        extends LINQPropertyBaseOperation<E, Grouping<EProperty, E>, LINQ<Grouping<EProperty, E>>, EProperty> {
 
-//    protected final LinkedList<E> linkedList;
-//    protected final PropertyExpression<E, EProperty> expression;
-//    protected final Comparator<EProperty> comparator;
-//
-//    public GroupByOperation(LINQ<E> baseQ, PropertyExpression<E, EProperty> expression, Comparator<EProperty> comparator) {
-//        linkedList = baseQ.toLinkedList();
-//        this.expression = expression;
-//        this.comparator = comparator;
-//    }
-//
-//    public final OrderedLINQ<E> getLINQ() {
-//        return new OrderedLINQ<E>(this);
-//    }
-//
-//    @Override
-//    public boolean hasNext() {
-//        return !linkedList.isEmpty();
-//    }
+    protected final LinkedList<E> ll;
+    protected final EqualityComparer<EProperty> equalityComparer;
+
+    public GroupByOperation(LINQ<E> baseQ, PropertyExpression<E, EProperty> expression,
+            EqualityComparer<EProperty> equalityComparer) {
+        super(baseQ, expression);
+        ll = baseQ.toLinkedList();
+        this.equalityComparer = equalityComparer;
+    }
+
+    @Override
+    public LINQ<Grouping<EProperty, E>> getValue() {
+        return LINQ.create(this);
+    }
+
+    @Override
+    public boolean hasNext() {
+        return !ll.isEmpty();
+    }
+
+    @Override
+    public Grouping<EProperty, E> next() {
+        E first = ll.removeFirst();
+        final EProperty prop = getProperty(first);
+
+        List<E> lst = LINQ.create(ll).where(new Predicate<E>() {
+            @Override
+            public boolean test(E t) {
+                return equalityComparer.isEquals(prop, getProperty(t));
+            }
+        }).toList();
+        lst.add(0, first);
+        ll.removeAll(lst);
+
+        return new Grouping<EProperty, E>(prop, lst);
+    }
 }

@@ -15,8 +15,14 @@ import kayseven.linq.PropertyExpression;
  */
 public class UnionSelectOperation<E, EProperty> extends LINQOperation<EProperty> {
 
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public static <T, TProperty> LINQ<TProperty> getClassUnionSelect(Iterator<T> ite, final Class<TProperty> clazz) {
-        return new UnionSelectOperation(ite, new ClassPropertyExpression()).getLINQ().ofType(clazz);
+        return new UnionSelectOperation<T, TProperty>(ite, new ClassPropertyExpression()).getLINQ().ofType(clazz);
+    }
+    
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public static <T> LINQ<T> getSelfUnionSelect(Iterator<? extends Iterator<T>> ite) {
+        return new UnionSelectOperation(ite, new ClassPropertyExpression()).getLINQ();
     }
 
     private EProperty next;
@@ -28,8 +34,9 @@ public class UnionSelectOperation<E, EProperty> extends LINQOperation<EProperty>
         super(null);
         this.expression = expression;
         this.baseIterator = iterator;
-        inner = baseIterator.hasNext() ? expression.getValue(baseIterator.next()).iterator() : EmptyIterator.<EProperty>create();
-//        hasNext = inner.hasNext();
+        inner = baseIterator.hasNext() ? expression.getValue(baseIterator.next()).iterator()
+                : EmptyIterator.<EProperty>create();
+        // hasNext = inner.hasNext();
 
         while (!inner.hasNext() && baseIterator.hasNext()) {
             inner = expression.getValue(baseIterator.next()).iterator();
@@ -41,10 +48,10 @@ public class UnionSelectOperation<E, EProperty> extends LINQOperation<EProperty>
         }
     }
 
-//    @Override
-//    public boolean hasNext() {
-//        return inner.hasNext() || baseIterator.hasNext();
-//    }
+    // @Override
+    // public boolean hasNext() {
+    // return inner.hasNext() || baseIterator.hasNext();
+    // }
     @Override
     public EProperty next() {
         if (!hasNext) {
@@ -68,20 +75,21 @@ public class UnionSelectOperation<E, EProperty> extends LINQOperation<EProperty>
         return current;
     }
 
-    private static class ClassPropertyExpression<T> implements PropertyExpression<T, Iterable<Object>> {
+    private static class ClassPropertyExpression<T> implements PropertyExpression<T, Iterable<?>> {
 
         @Override
+        @SuppressWarnings({ "unchecked", "rawtypes" })
         public Iterable<Object> getValue(T obj) {
             if (obj instanceof Iterable) {
                 return (Iterable) obj;
             }
-//                List<E> ary = Arrays.asList(obj);
-//
-//                if (ary.size() == 1 && ary.get(0) == obj) {
+            // List<E> ary = Arrays.asList(obj);
+            //
+            // if (ary.size() == 1 && ary.get(0) == obj) {
             return Collections.emptyList();
-//                }
-//
-//                return (Iterable) ary;
+            // }
+            //
+            // return (Iterable) ary;
         }
 
     }

@@ -1,8 +1,6 @@
 package kayseven.linq;
 
-
 import java.util.Comparator;
-
 
 /**
  *
@@ -11,6 +9,7 @@ import java.util.Comparator;
 class DefaultComparator implements Comparator<Object> {
 
     @Override
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     public int compare(Object o1, Object o2) {
         if (o1 == o2) {
             return 0;
@@ -53,7 +52,14 @@ class DefaultComparator implements Comparator<Object> {
         if (o1 instanceof Boolean && o2 instanceof Boolean) {
             return ((Boolean) o1).compareTo((Boolean) o2);
         }
+        if (o1 instanceof Comparable) {
+            return ((Comparable) o1).compareTo(o2);
+        }
+        if (o2 instanceof Comparable) {
+            return -((Comparable) o2).compareTo(o1);
+        }
 
-        return o1.hashCode() - o2.hashCode();
+        int hashDif = o1.hashCode() - o2.hashCode();
+        return hashDif == 0 ? -1 : hashDif;
     }
 }
